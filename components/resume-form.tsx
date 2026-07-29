@@ -163,7 +163,7 @@ export function ResumeForm({
         {mode === "paste" ? (
           <Textarea
             placeholder="Paste the candidate's resume text here..."
-            className="min-h-[200px]"
+            className="min-h-50"
             value={resumeText}
             onChange={(e) => setResumeText(e.target.value)}
           />
@@ -239,7 +239,7 @@ export function ResumeForm({
 
             {resumeText && !extracting && (
               <Textarea
-                className="min-h-[160px]"
+                className="min-h-40"
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
               />
