@@ -49,39 +49,32 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: 40 25% 98%;        /* --paper #FBFAF8 */
+  --foreground: 220 14% 12%;       /* --ink #1B1E23 */
+  --muted-foreground: 220 8% 42%;  /* --ink-muted #656B76 */
+  --border: 40 20% 87%;            /* --line #E4E0D6 */
+  --primary: 160 33% 27%;          /* --accent #2F5D50 */
+  --primary-foreground: 40 25% 98%;
+  --card: 0 0% 100%;
+  --radius: 0.5rem;
 }
+
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+.font-mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+/* tier colors used by the score ring */
+.tier-high { --ring-color: #2f6b4f; --ring-bg: #e4f1e9; }
+.tier-mid  { --ring-color: #9c6b14; --ring-bg: #fbf0dd; }
+.tier-low  { --ring-color: #a3402f; --ring-bg: #fbeae6; }
 
 .dark {
   --background: oklch(0.145 0 0);
