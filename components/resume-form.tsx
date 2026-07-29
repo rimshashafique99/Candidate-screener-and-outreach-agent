@@ -1,10 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ScreeningResult } from "@/types/screening";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UploadCloud, FileText, X } from "lucide-react";
+
+import type { TextItem, TextMarkedContent } from "pdfjs-dist/types/src/display/api";
+
+function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
+  return "str" in item;
+}
+
+async function extractTextFromPDF(file: File): Promise<string> {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let fullText = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .filter(isTextItem)
+      .map((item) => item.str)
+      .join(" ");
+    fullText += pageText + "\n";
+  }
+  return fullText.trim();
+}
 
 export function ResumeForm({
   jdId,
@@ -15,8 +42,51 @@ export function ResumeForm({
   jobDescription: string;
   onResult: (result: ScreeningResult) => void;
 }) {
+  const [mode, setMode] = useState<"paste" | "upload">("paste");
   const [resumeText, setResumeText] = useState("");
+  const [extracting, setExtracting] = useState(false);
   const [screening, setScreening] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Single source of truth for handling a File, whether it came from
+  // click-to-browse or drag-and-drop — no `any` cast needed either way.
+  async function processFile(file: File) {
+    if (file.type !== "application/pdf") {
+      alert("Please upload a PDF file.");
+      return;
+    }
+
+    setFileName(file.name);
+    setExtracting(true);
+    try {
+      const text = await extractTextFromPDF(file);
+      if (!text) {
+        alert(
+          "Couldn't find any text in that PDF — it may be a scanned image. Try pasting the text instead."
+        );
+      }
+      setResumeText(text);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to extract text from that PDF. Try pasting the text instead.");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }
 
   async function handleScreen() {
     if (!resumeText.trim()) return;
@@ -27,29 +97,13 @@ export function ResumeForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jdId, jobDescription, resumeText }),
       });
-      const contentType = res.headers.get("content-type") || "";
-      if (!res.ok) {
-        const text = await res.text();
-        console.error(
-          "/api/agent-mock returned error status:",
-          res.status,
-          text,
-        );
-        throw new Error(text || `Request failed with status ${res.status}`);
-      }
-      if (!contentType.includes("application/json")) {
-        const text = await res.text();
-        console.error("/api/agent-mock returned non-JSON response:", text);
-        throw new Error("Expected JSON response from /api/agent-mock");
-      }
       const data = await res.json();
       onResult(data);
       setResumeText("");
+      setFileName(null);
     } catch (err) {
       console.error(err);
-      alert(
-        "Something went wrong screening this candidate. Check the console.",
-      );
+      alert("Something went wrong screening this candidate. Check the console.");
     } finally {
       setScreening(false);
     }
@@ -61,13 +115,112 @@ export function ResumeForm({
         <CardTitle>Screen a candidate</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Textarea
-          placeholder="Paste the candidate's resume text here..."
-          className="min-h-[200px]"
-          value={resumeText}
-          onChange={(e) => setResumeText(e.target.value)}
-        />
-        <Button onClick={handleScreen} disabled={screening}>
+        {/* Mode toggle — just switches the view below, nothing else */}
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={mode === "paste" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("paste")}
+          >
+            Paste text
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "upload" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("upload")}
+          >
+            Upload PDF
+          </Button>
+        </div>
+
+        {mode === "paste" ? (
+          <Textarea
+            placeholder="Paste the candidate's resume text here..."
+            className="min-h-[200px]"
+            value={resumeText}
+            onChange={(e) => setResumeText(e.target.value)}
+          />
+        ) : (
+          <div className="space-y-3">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`
+                flex flex-col items-center justify-center gap-2
+                rounded-lg border-2 border-dashed
+                px-6 py-10 text-center cursor-pointer
+                transition-colors
+                ${
+                  isDragging
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/30"
+                }
+              `}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+
+              {extracting ? (
+                <>
+                  <UploadCloud className="h-8 w-8 text-muted-foreground animate-pulse" />
+                  <p className="text-sm text-muted-foreground">Extracting text from PDF...</p>
+                </>
+              ) : fileName ? (
+                <>
+                  <FileText className="h-8 w-8 text-primary" />
+                  <p className="text-sm font-medium">{fileName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {resumeText.length} characters extracted — click to replace
+                  </p>
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">Upload file</p>
+                  <p className="text-xs text-muted-foreground">
+                    Drag and drop a PDF here, or click to browse
+                  </p>
+                </>
+              )}
+            </div>
+
+            {fileName && !extracting && (
+              <button
+                type="button"
+                onClick={() => {
+                  setResumeText("");
+                  setFileName(null);
+                }}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+                Clear file
+              </button>
+            )}
+
+            {resumeText && !extracting && (
+              <Textarea
+                className="min-h-[160px]"
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
+              />
+            )}
+          </div>
+        )}
+
+        <Button onClick={handleScreen} disabled={screening || extracting || !resumeText.trim()}>
           {screening ? "Screening..." : "Screen candidate"}
         </Button>
       </CardContent>

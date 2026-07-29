@@ -25,23 +25,26 @@ export async function POST(req: Request) {
   try {
     const { jdId, jobDescription, resumeText } = await req.json();
 
+    const resume = (resumeText ?? "").toString();
+    const jd = (jobDescription ?? "").toString();
+
     // Simple heuristic mock scoring
-    const skills = extractSkills(resumeText + " " + jobDescription);
+    const skills = extractSkills(resume + " " + jd);
     const score = Math.min(
       100,
       Math.max(
         20,
-        Math.round(skills.length * 25 + (resumeText.length > 1000 ? 10 : 0)),
+        Math.round(skills.length * 25 + (resume.length > 1000 ? 10 : 0)),
       ),
     );
-    const yearsExperience = resumeText.match(/\b(\d+)\+?\s+years?\b/i)?.[1]
-      ? parseInt(resumeText.match(/\b(\d+)\+?\s+years?\b/i)![1], 10)
-      : null;
+
+    const yearsMatch = resume.match(/\b(\d+)\+?\s+years?\b/i);
+    const yearsExperience = yearsMatch ? parseInt(yearsMatch[1], 10) : null;
 
     const result = {
       id: `cand_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
       name:
-        resumeText
+        resume
           .split("\n")
           .find((l: string) => l.trim().length > 0)
           ?.slice(0, 60) || null,
@@ -55,28 +58,37 @@ export async function POST(req: Request) {
           : null,
     } as const;
 
-    // Save to candidates pipeline if table exists
-    try {
-      await supabase.from("candidates").insert({
-        id: result.id,
-        jd_id: jdId,
-        name: result.name,
-        score: result.score,
-        status: score >= 60 ? "selected" : "rejected",
-      });
-    } catch (e) {
-      console.warn("Could not save candidate to pipeline", e);
-    }
+    // Save to candidates pipeline if table exists (don't assume Supabase throws)
+    const { error } = await supabase.from("candidates").insert({
+      jd_id: jdId,
+      raw_resume: resume,
+      name: result.name,
+      parsed_skills: result.parsedSkills,
+      years_experience: result.yearsExperience,
+      score: result.score,
+      reasoning: result.reasoning,
+      outreach_draft: result.outreachDraft,
+      status: score >= 60 ? "screened" : "new", // schema default was new|screened|contacted
+    });
+
+    if (error) console.warn("Could not save candidate to pipeline", error);
 
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
-    console.error(err);
+  } catch (err: unknown) {
+    if (err instanceof Error) console.error(err);
+    else console.error("Unknown error", err);
+
     return new Response(
-      JSON.stringify({ error: err?.message || String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      JSON.stringify({
+        error: err instanceof Error ? err.message : String(err),
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
     );
   }
 }
