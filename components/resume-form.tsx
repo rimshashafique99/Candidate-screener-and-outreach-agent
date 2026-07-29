@@ -5,9 +5,12 @@ import { ScreeningResult } from "@/types/screening";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UploadCloud, FileText, X } from "lucide-react";
+import { UploadCloud, FileText, X, AlertCircle } from "lucide-react";
 
-import type { TextItem, TextMarkedContent } from "pdfjs-dist/types/src/display/api";
+import type {
+  TextItem,
+  TextMarkedContent,
+} from "pdfjs-dist/types/src/display/api";
 
 function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
   return "str" in item;
@@ -49,6 +52,7 @@ export function ResumeForm({
   const [fileName, setFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Single source of truth for handling a File, whether it came from
   // click-to-browse or drag-and-drop — no `any` cast needed either way.
@@ -64,13 +68,15 @@ export function ResumeForm({
       const text = await extractTextFromPDF(file);
       if (!text) {
         alert(
-          "Couldn't find any text in that PDF — it may be a scanned image. Try pasting the text instead."
+          "Couldn't find any text in that PDF — it may be a scanned image. Try pasting the text instead.",
         );
       }
       setResumeText(text);
     } catch (err) {
       console.error(err);
-      alert("Failed to extract text from that PDF. Try pasting the text instead.");
+      alert(
+        "Failed to extract text from that PDF. Try pasting the text instead.",
+      );
     } finally {
       setExtracting(false);
     }
@@ -89,50 +95,69 @@ export function ResumeForm({
   }
 
   async function handleScreen() {
-    if (!resumeText.trim()) return;
+    setError(null);
+    if (!resumeText.trim()) {
+      setError(
+        "Add a candidate resume — paste text or upload a PDF — before screening.",
+      );
+      return;
+    }
     setScreening(true);
     try {
-      const res = await fetch("/api/agent-mock", {
+      const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jdId, jobDescription, resumeText }),
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Request failed with status ${res.status}`);
+      }
       const data = await res.json();
       onResult(data);
       setResumeText("");
       setFileName(null);
     } catch (err) {
       console.error(err);
-      alert("Something went wrong screening this candidate. Check the console.");
+      setError(
+        "Something went wrong screening this candidate. Please try again.",
+      );
     } finally {
       setScreening(false);
     }
   }
-
   return (
-    <Card>
+    <Card className="border border-[#E4E0D6] shadow-sm rounded-xl">
       <CardHeader>
-        <CardTitle>Screen a candidate</CardTitle>
+        <CardTitle className="font-display text-lg font-medium">
+          Screen a candidate
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Mode toggle — just switches the view below, nothing else */}
-        <div className="flex gap-2">
-          <Button
+        <div className="inline-flex rounded-full border border-[#E4E0D6] p-1 bg-[#FBFAF8]">
+          <button
             type="button"
-            variant={mode === "paste" ? "default" : "outline"}
-            size="sm"
             onClick={() => setMode("paste")}
+            className={`px-4 py-1.5 text-sm rounded-full transition-colors ${
+              mode === "paste"
+                ? "bg-[#2F5D50] text-white"
+                : "text-[#656B76] hover:text-[#1B1E23]"
+            }`}
           >
             Paste text
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant={mode === "upload" ? "default" : "outline"}
-            size="sm"
             onClick={() => setMode("upload")}
+            className={`px-4 py-1.5 text-sm rounded-full transition-colors ${
+              mode === "upload"
+                ? "bg-[#2F5D50] text-white"
+                : "text-[#656B76] hover:text-[#1B1E23]"
+            }`}
           >
             Upload PDF
-          </Button>
+          </button>
         </div>
 
         {mode === "paste" ? (
@@ -175,7 +200,9 @@ export function ResumeForm({
               {extracting ? (
                 <>
                   <UploadCloud className="h-8 w-8 text-muted-foreground animate-pulse" />
-                  <p className="text-sm text-muted-foreground">Extracting text from PDF...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Extracting text from PDF...
+                  </p>
                 </>
               ) : fileName ? (
                 <>
@@ -220,7 +247,18 @@ export function ResumeForm({
           </div>
         )}
 
-        <Button onClick={handleScreen} disabled={screening || extracting || !resumeText.trim()}>
+        {error && (
+          <div className="flex items-start gap-2 rounded-md bg-[#FBEAE6] px-3 py-2 text-sm text-[#A3402F]">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <Button
+          onClick={handleScreen}
+          disabled={screening || extracting}
+          className="bg-[#2F5D50] text-white hover:bg-[#264c41] px-5 py-2 rounded-md font-medium disabled:opacity-60"
+        >
           {screening ? "Screening..." : "Screen candidate"}
         </Button>
       </CardContent>

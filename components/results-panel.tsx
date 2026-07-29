@@ -3,58 +3,94 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScreeningResult } from "@/types/screening";
 
+function tierClass(score: number) {
+  if (score >= 75) return "tier-high";
+  if (score >= 50) return "tier-mid";
+  return "tier-low";
+}
+
+function ScoreRing({ score }: { score: number }) {
+  const tier = tierClass(score);
+  return (
+    <div
+      className={`${tier} relative h-16 w-16 shrink-0 rounded-full`}
+      style={{
+        background: `conic-gradient(var(--ring-color) ${score}%, var(--ring-bg) 0)`,
+      }}
+    >
+      <div className="absolute inset-0.75 flex items-center justify-center rounded-full bg-white">
+        <span
+          className="font-mono text-sm font-semibold"
+          style={{ color: "var(--ring-color)" }}
+        >
+          {score}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function ResultsPanel({ result }: { result: ScreeningResult | null }) {
   if (!result) return null;
 
-  const scoreColor =
-    result.score >= 75
-      ? "bg-green-100 text-green-800"
-      : result.score >= 50
-        ? "bg-yellow-100 text-yellow-800"
-        : "bg-red-100 text-red-800";
-
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>{result.name || "Candidate"}</CardTitle>
-        <span
-          className={`px-3 py-1 rounded-full text-sm font-medium ${scoreColor}`}
-        >
-          {result.score}/100
-        </span>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card className="border-[hsl(var(--border))]">
+      <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+        <ScoreRing score={result.score} />
         <div>
-          <p className="text-sm font-medium mb-1">Skills detected</p>
-          <div className="flex flex-wrap gap-1">
+          <CardTitle className="font-display text-xl font-medium">
+            {result.name || "Candidate"}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {result.yearsExperience != null
+              ? `${result.yearsExperience} yr${result.yearsExperience === 1 ? "" : "s"} experience`
+              : "Experience not specified"}
+          </p>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-5">
+        <div>
+          <p className="mb-2 text-md font-medium uppercase tracking-wide text-muted-foreground">
+            Skills detected
+          </p>
+          <div className="flex flex-wrap gap-1.5">
             {(result.parsedSkills || []).map((skill: string) => (
-              <Badge key={skill} variant="secondary">
+              <Badge
+                key={skill}
+                variant="secondary"
+                className="rounded-full border border-[#E4E0D6] bg-white px-3 py-2 font-mono text-[14px] font-normal"
+              >
                 {skill}
               </Badge>
             ))}
           </div>
         </div>
 
-        {result.yearsExperience != null && (
-          <p className="text-sm">
-            <span className="font-medium">Years of experience: </span>
-            {result.yearsExperience}
-          </p>
-        )}
-
         <Separator />
 
         <div>
-          <p className="text-sm font-medium mb-1">Reasoning</p>
-          <p className="text-sm text-muted-foreground">{result.reasoning}</p>
+          <p className="mb-2 text-md font-medium uppercase tracking-wide text-muted-foreground">
+            Reasoning
+          </p>
+          <ul className="space-y-1.5">
+            {result.reasoning.map((point, i) => (
+              <li key={i} className="flex gap-2 text-sm text-foreground/90">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[hsl(var(--primary))]" />
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {result.outreachDraft && (
           <>
             <Separator />
             <div>
-              <p className="text-sm font-medium mb-1">Outreach draft</p>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              <p className="mb-2 text-md font-medium uppercase tracking-wide text-muted-foreground">
+                Outreach draft
+              </p>
+              <p className="whitespace-pre-wrap rounded-md bg-[hsl(var(--primary)/0.06)] p-3 text-sm text-foreground/90">
                 {result.outreachDraft}
               </p>
             </div>

@@ -61,7 +61,37 @@ export const scoreCandidate = tool(
     }),
   }
 );
-
+export const submitResult = tool(
+  async (args) => {
+    // No side effects here — this tool exists purely to force
+    // structured, schema-validated output as the agent's final step.
+    return JSON.stringify(args);
+  },
+  {
+    name: "submit_result",
+    description:
+      "MUST be called exactly once, as your final action, after save_to_pipeline " +
+      "has succeeded. Pass the fully finalized screening result. This is what " +
+      "gets returned to the UI — do not call it early or with partial data.",
+   schema: z.object({
+  id: z.string().describe("The candidate id returned by save_to_pipeline"),
+  name: z.string().nullable(),
+  score: z.number().min(0).max(100),
+  parsedSkills: z.array(z.string()),
+  yearsExperience: z.number().nullable(),
+  reasoning: z
+    .array(z.string())
+    .min(2)
+    .max(6)
+    .describe(
+      "7-8 specific bullet points. Each bullet is one self-contained " +
+      "observation (a match, a gap, a trajectory note) — no filler, no repeating " +
+      "the candidate's name, plain sentence case, no trailing period required."
+    ),
+  outreachDraft: z.string().nullable(),
+}),
+  }
+);
 // --- Tool 3: saveToPipeline — the one tool that MUST be a tool (real DB write) ---
 export const saveToPipeline = tool(
   async ({ jdId, name, rawResume, parsedSkills, yearsExperience, score, reasoning, outreachDraft }) => {

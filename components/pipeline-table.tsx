@@ -11,8 +11,33 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-
 import { Candidate } from "@/types/candidate";
+
+function tierClass(score: number) {
+  if (score >= 75) return "tier-high";
+  if (score >= 50) return "tier-mid";
+  return "tier-low";
+}
+
+function MiniRing({ score }: { score: number | null | undefined }) {
+  if (score == null) {
+    return (
+      <div className="h-6 w-6 shrink-0 rounded-full border border-dashed border-[hsl(var(--border))]" />
+    );
+  }
+
+  const tier = tierClass(score);
+  return (
+    <div
+      className={`${tier} relative h-6 w-6 shrink-0 rounded-full`}
+      style={{
+        background: `conic-gradient(var(--ring-color) ${score}%, var(--ring-bg) 0)`,
+      }}
+    >
+      <div className="absolute inset-0.5 rounded-full bg-white" />
+    </div>
+  );
+}
 
 export function PipelineTable({
   jdId,
@@ -26,7 +51,6 @@ export function PipelineTable({
 
   useEffect(() => {
     let cancelled = false;
-
     async function fetchCandidates() {
       setLoading(true);
       const { data, error } = await supabaseBrowser
@@ -34,14 +58,12 @@ export function PipelineTable({
         .select("*")
         .eq("jd_id", jdId)
         .order("created_at", { ascending: false });
-
       if (!cancelled) {
         if (error) console.error(error);
         setCandidates((data as Candidate[]) || []);
         setLoading(false);
       }
     }
-
     fetchCandidates();
     return () => {
       cancelled = true;
@@ -62,19 +84,32 @@ export function PipelineTable({
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Candidate</TableHead>
-          <TableHead>Score</TableHead>
-          <TableHead>Status</TableHead>
+        <TableRow className="border-[hsl(var(--border))]">
+          <TableHead className="font-display text-xs uppercase tracking-wide">
+            Candidate
+          </TableHead>
+          <TableHead className="font-display text-xs uppercase tracking-wide">
+            Score
+          </TableHead>
+          <TableHead className="font-display text-xs uppercase tracking-wide">
+            Status
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {candidates.map((c) => (
-          <TableRow key={c.id}>
+          <TableRow key={c.id} className="border-[hsl(var(--border))]">
             <TableCell>{c.name || "Unknown"}</TableCell>
-            <TableCell>{c.score}</TableCell>
             <TableCell>
-              <Badge variant="outline">{c.status}</Badge>
+              <div className="flex items-center gap-2">
+                <MiniRing score={c.score} />
+                <span className="font-mono text-sm">{c.score}</span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <Badge variant="outline" className="font-mono text-[11px]">
+                {c.status}
+              </Badge>
             </TableCell>
           </TableRow>
         ))}

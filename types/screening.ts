@@ -1,8 +1,9 @@
 export interface ScreeningResult {
-  name?: string | null;
+  id: string;
+  name: string | null;
   score: number;
-  parsedSkills?: string[] | null;
-  yearsExperience?: number | null;
-  reasoning?: string | null;
-  outreachDraft?: string | null;
+  parsedSkills: string[];
+  yearsExperience: number | null;
+  reasoning: string[];
+  outreachDraft: string | null;
 }

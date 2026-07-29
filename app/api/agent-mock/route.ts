@@ -51,7 +51,14 @@ export async function POST(req: Request) {
       score,
       parsedSkills: skills,
       yearsExperience,
-      reasoning: `Matched skills: ${skills.join(", ")}.`,
+      reasoning: [
+        skills.length
+          ? `Matched skills: ${skills.join(", ")}`
+          : "No keyword matches found against the JD",
+        resume.length > 1000
+          ? "Resume length suggests substantial detail"
+          : "Resume is relatively brief",
+      ],
       outreachDraft:
         score >= 60
           ? `Hi — I liked your experience with ${skills.slice(0, 3).join(", ")}...`
