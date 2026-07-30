@@ -4,7 +4,8 @@ A focused AI agent that helps a recruiter screen a candidate resume against a jo
 
 Built for the Z360 Deep Agent Harness take-home challenge.
 
-**Live demo:** [(https://candidate-screener-and-outreach-agent.vercel.app/)]
+**Live demo:** https://candidate-screener-and-outreach-agent.vercel.app/
+
 **Demo video:** [add your Loom/video link here]
 
 ---
